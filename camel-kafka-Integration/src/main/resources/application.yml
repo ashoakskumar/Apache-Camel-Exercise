@@ -1,0 +1,21 @@
+#camel configuration
+#kafka:
+#  server : localhost
+#  port : 9092
+#  topic : kafkalearning
+#  #defined consumer group
+#  channel : 8
+#auto.offset.reset: earliest
+#
+#spring:
+#  kafka:
+#    bootstrap-servers: 127.0.0.1:9092
+#    producer:
+#      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+#      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+#    consumer:
+#      # should be able to specify the consumer class
+#      group-id: 9
+#      enable-auto-commit: true
+#      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer

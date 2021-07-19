@@ -1,0 +1,157 @@
+Apache Camel:-
+1. It is a integeration framework used transfer data between two application or system. 
+2. It does so by using different protocol like - HTTP, FTP, JMS etc
+3. Can transfer data of these type - Text,Json, XML etc (read from one type and write to another type)
+4. It Contains three internal operation - 
+	Route - Transfer data b/w systems.
+	Filter - check for some conditional before routing.
+	Process - mostly modification and convertion happens here.
+5. Camel code is done by using Enterprise Integration Pattern language
+6. File Transfer Exmple:- 
+	camel.springboot.main-run-controller=true
+	from("file:D:\\resources\\src").to("file:D:\\resources\\dest");
+7. if you do not want transfer file more than one time and do not to keep back up
+	from("file:D:\\resources\\src?noop=true").to("file:D:\\resources\\dest");
+	NOOP - No operation to override program
+8. Process:
+	public void configure() throws Exception {
+		from("file:D:\\resources\\src?noop=true")
+		.process(new Processor () {
+			@Override
+			public void process(Exchange exchange) throws Exception {
+				Message input  = exchange.getIn();
+				String data = input.getBody(String.class);
+				StringTokenizer str = new StringTokenizer(data,",");
+				String eid = str.nextToken();
+				String ename = str.nextToken();
+				String esal = str.nextToken();
+				
+				String dataModified = "{eid:"+eid+",ename:"+ename+",esal:"+esal+"}";
+				
+				Message output= exchange.getMessage();
+				output.setBody(dataModified);
+			}
+		})
+		.to("file:D:\\resources\\dest?fileName=emp.json"); // to store in emp.json
+9. Seda - SEDA is an acronym that stands for Staged Event Driven Architecture it is designed as a mechanism to regulate the flow between different phases of message processing.
+		  The seda: component provides asynchronous SEDA behavior, so that messages are exchanged on a BlockingQueue and consumers are invoked in a separate thread from the producer.
+10. The Direct component provides direct, synchronous invocation of any consumers when a producer sends a message exchange. This endpoint can be used to connect existing routes in the same camel context. 
+	The SEDA component provides asynchronous invocation of any consumers when a producer sends a message exchange.
+11. Producer & Consumer
+	ProducerTemplate producerTemplate = camelContext.createProducerTemplate();
+		producerTemplate.sendBody("direct:start","Hello");
+	ConsumerTemplate consumerTemplate = camelContext.createConsumerTemplate();
+		String msg = consumerTemplate.receiveBody("seda:end",String.class);
+12. Components:- 
+12.1 Direct – Allows you to synchronously call another endpoint with little overhead.
+12.2 SEDA – Allows you to asynchronously call another endpoint in the same
+	CamelContext context = new DefaultCamelContext();
+		context.addRoutes(new RouteBuilder() {
+			
+			@Override
+			public void configure() throws Exception {
+				from("direct:start").to("seda:end");
+			}
+		});
+		context.start();
+		ProducerTemplate pTemp = context.createProducerTemplate();
+		pTemp.sendBody("direct:start","Hello Camel");
+		ConsumerTemplate cTemp = context.createConsumerTemplate();
+		String msg = cTemp.receiveBody("seda:end",String.class);
+		System.out.println("Msg:" +msg);
+		context.stop();
+12.3 Class - to call the class method from producer template
+	CamelContext classContext = new DefaultCamelContext();
+		classContext.addRoutes(new RouteBuilder() {
+			
+			@Override
+			public void configure() throws Exception {
+				from("direct:start").to("class:com.ashok.example.service.MyService?method=setMessage");
+			}
+		});
+		classContext.start();
+		ProducerTemplate pTemp = classContext.createProducerTemplate();
+		pTemp.sendBody("direct:start","Hello Camel from class");
+		classContext.stop();
+12.4 Bean - dynamic registration
+	MyService service = new MyService();
+		DefaultRegistry  simpleRegistry = new DefaultRegistry();
+		simpleRegistry.bind("service", service);
+		
+		CamelContext context = new DefaultCamelContext(simpleRegistry);
+		context.addRoutes(new RouteBuilder() {
+			
+			@Override
+			public void configure() throws Exception {
+				from("direct:start").to("bean:service?method=setMessage");
+			}
+		});
+		context.start();
+		ProducerTemplate pTemp = context.createProducerTemplate();
+		pTemp.sendBody("direct:start","Hello Camel from Bean");
+		context.close();
+12.5 Mock – Tests that messages flow through a route as expected.
+	CamelContext context = new DefaultCamelContext(simpleRegistry);
+		context.addRoutes(new RouteBuilder() {
+			
+			@Override
+			public void configure() throws Exception {
+				from("direct:start").to("bean:service?method=setMessage").to("mock:out");
+			}
+		});
+		context.start();
+		ProducerTemplate pTemp = context.createProducerTemplate();
+		 MockEndpoint resultEndpoint = context.getEndpoint("mock:out", MockEndpoint.class);
+         resultEndpoint.expectedMessageCount(1);
+         resultEndpoint.expectedBodiesReceived("Hello Camel from Bean");
+         pTemp.sendBody("direct:start","Hello Camel from Bean");
+         System.out.println("Message received: " + resultEndpoint.getExchanges().get(0).getIn().getBody());
+         resultEndpoint.assertIsSatisfied();
+12.6 File – Allows you to work with files, to reads or write to files.
+		12.6.1 Xml to Json
+				from("file:XmlFolder").unmarshal(defination).process(new EmployeeProcessor()).marshal(jsonDataFormat)
+				 .to("log:{body}").to("file:JsonFolder?fileName=emp.json");
+		12.6.2 Json to xml
+				from("file:JsonFolder").unmarshal(jsonDataFormat).process(new EmployeeJsonProcessor())
+				.marshal(defination).to("file:XmlFolder?fileName=output.xml");
+		12.6.3 processing csv file
+				from("file:CsvFolder").unmarshal(bindy).process(new EmployeeCsvProcessor());
+		12.6.4 Schema validation json
+				from("file:JsonFolder").convertBodyTo(String.class).log("${body}").to("json-validator:classpath:myschema.json")
+        .to("seda:end");
+12.7 Exception handling - two types - using do try, onException
+		12.7.1 - from("file:C:/inputFolder?noop=true").doTry().process(new MyProcessor()).to("file:C:/outputFolder")
+            .doCatch(CamelCustomException.class).process(new Processor() {
+
+                public void process(Exchange exchange) throws Exception {
+                    System.out.println("handling ex");
+                }
+            }).log("Received body ");
+		12.7.2  onException(CamelCustomException.class).process(new Processor() {
+
+            public void process(Exchange exchange) throws Exception {
+                System.out.println("handling ex");
+            }
+        }).log("Received body ").handled(true);
+12.8 TImer -  Sends out messages at regular intervals
+			 from("timer://timerExample?period=2000")
+                            .setBody()
+                            .simple("This is timer example ${header.firedTime}")
+                            .to("bean:greetingBean")
+                            .to("stream:out");
+                    ;
+                }
+            });
+12.9 Rest - 
+		restConfiguration().component("servlet").port(9090).host("localhost").bindingMode(RestBindingMode.json);
+		
+		rest().get("/hello-world").produces(MediaType.APPLICATION_JSON_VALUE).route().setBody(constant("Welcome to Rest Camel"));
+		
+		rest().get("/getOrders").produces(MediaType.APPLICATION_JSON_VALUE).route().setBody(()-> service.getOrderList());
+		
+		rest().post("/addOrder").consumes(MediaType.APPLICATION_JSON_VALUE).type(Order.class).outType(Order.class).route().process(processor).endRest();
+12.10 SQL - 
+		 rest().put("sql/book/{id}").produces(MediaType.APPLICATION_JSON_VALUE).route().choice().when()
+        .simple("${header.id} < 1").bean(BookSQLRouter.class, "negativeId").otherwise()
+        .to("sql:{{sql.update}}").setHeader(Exchange.HTTP_RESPONSE_CODE, constant(200))
+        .setBody(constant(null));
